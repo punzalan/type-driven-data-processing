@@ -9,7 +9,7 @@
 <div class="slides">
 
 <section class="title-slide">
-<h1>Type-driven data processing</h1>
+<h1>Adventures in Type-driven data processing</h1>
 </section>
 
 <section>
@@ -24,38 +24,38 @@
 <h2>Example data</h2>
 <pre>
 <code>
-id    user_id    episode      ds_begin    ds_end
-1     1          inpatient    2019-01-01  2019-01-08
-2     1          behavioral   2019-01-08  2019-01-15
-3     1          inpatient    2019-01-17  2019-01-18
+id  user_id  episode          ds_begin    ds_end
+1   1        'san francisco'  2019-01-01  2019-01-08
+2   1        'ogunquit'       2019-01-08  2019-01-15
+3   1        'los angeles'    2019-01-17  2019-01-18
 </code>
 </pre>
 </section>
 
 <section>
 <h2>Example computations</h2>
-<p>Spans aggregated across all episodes</p>
+<p>Aggregate travel across all stays</p>
 <pre>
 <code>
-user_id   ds_begin    ds_end
-1         2019-01-01  2019-01-15
-1         2019-01-17  2019-01-18
+user_id  ds_begin    ds_end
+1        2019-01-01  2019-01-15
+1        2019-01-17  2019-01-18
 </code>
 </pre>
-<p>Spans for inpatient episodes only</p>
+<p>Aggregate only West Coast travel</p>
 <pre>
 <code>
-user_id   ds_begin    ds_end
-1         2019-01-01  2019-01-08
-1         2019-01-17  2019-01-18
+user_id  ds_begin    ds_end
+1        2019-01-01  2019-01-08
+1        2019-01-17  2019-01-18
 </code>
 </pre>
 </section>
 
 <section>
-<h2>Observations</h2>
-<p>Iteration seems natural</p>
-<p>Multiple definitions</p>
+<h2>Things to consider</h2>
+<p>Sequential processing seems natural</p>
+<p>Different ways to aggregate</p>
 </section>
 
 <section>
@@ -68,7 +68,7 @@ user_id   ds_begin    ds_end
 
 
 <section>
-<h2>Approaches in SQL</h2>
+<h2>Some approaches in SQL</h2>
 <p>Window functions and <code>case</code> statements</p>
 <p>Fancy SQL (recursive CTE, Oracle <code>connect by</code>)</p>
 </section>
@@ -77,12 +77,16 @@ user_id   ds_begin    ds_end
 <section>
 <h2>Why not SQL</h2>
 <p>Correctness: What about testing?</p>
-<p>Idiom: No simple approaches in SQL</p>
+<p>Idiom: What about sequential idioms?</p>
 <p>Leverage: What about code reuse?</p>
 </section>
 
+<section class="title-slide">
+<h2>What I've tried</h2>
+</section>
+
 <section>
-<h2>One approach in Python</h2>
+<h2>Separate and simplify</h2>
 <p>Solve case of aggregating spans for one user</p>
 <p>Treat the <code>map</code> step separately</p>
 </section>
@@ -151,23 +155,23 @@ def __add__(self, other):
 <section>
 <h2>Method</h2>
 <pre>
-<code>
+<code class="stretch">
 def roll_up(spans, acc=None):
     acc = acc if acc is not None else []
 
     if spans == []:
         return acc
 
-    current_span = spans[0]
+    current = spans[0]
     if acc == []:
-        return roll_up(current_span[1:], acc=[current_span])
+        return roll_up(current[1:], acc=[current])
 
-    last_span = acc[-1]
-    if last_span.adjoins(current_span) or last_span.intersects(current_span):
-        acc = acc + [current_span + last_span]
+    last = acc[-1]
+    if last.adjoins(current) or last.intersects(current):
+        acc = acc + [current + last]
     else:
-        acc = acc + [current_span]
-    return roll_up(current_spans[1:], acc=acc)
+        acc = acc + [current]
+    return roll_up(current[1:], acc=acc)
 </code>
 </pre>
 </section>
@@ -175,21 +179,21 @@ def roll_up(spans, acc=None):
 
 <section>
 <h2>Win #1: Correctness</h2>
-<p>The code is testable out of the box</p>
-<p>The tests of the type and rollup methods are high leverage</p>
-<p>The tests for each pipeline task become simple</p>
+<p>You can write tests</p>
+<p>You can separate out the tests</p>
+<p>You can support refactoring with tests</p>
 </section>
 
 <section>
 <h2>Win #2: Code reuse</h2>
-<p>Very common to share code via state in SQL</p>
-<p>Here, sharre code via import</p>
+<p>Very common to share code by sharing state in SQL</p>
+<p>Here, share code via import</p>
 </section>
 
 <section>
 <h2>Win #3: Easy to change</h2>
-<p>SQL: Support different definitions with copy and paste</p>
-<p>Python: Support different definitions by filtering data or adding another method</p>
+<p>SQL: Copy, paste, and change</p>
+<p>Python: Change upstream query and reuse methods</p>
 </section>
 
 <section>
